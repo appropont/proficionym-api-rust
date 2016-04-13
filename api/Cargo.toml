@@ -1,7 +1,9 @@
 [package]
 name = "api"
 version = "0.1.0"
-authors = ["vagrant"]
+authors = ["cmgriffing"]
 
 [dependencies]
 nickel = "*"
+log = "*"
+config = "~0.1.0"
