@@ -1,10 +1,10 @@
 // src/main.rs
 
-#[macro_use] 
+#[macro_use]
 extern crate nickel;
 extern crate config;
+extern crate regex;
 
-use std::process;
 use std::path::Path;
 use nickel::{Nickel, JsonBody, HttpRouter, Request, Response, MiddlewareResult, MediaType};
 use config::reader;
@@ -36,11 +36,22 @@ fn main() {
     });
 
     server.utilize(router! {
-        get "/whois/:domain.:tld" => |_req, _res| {
+        get "/whois/:domain.:tld" => |_req, mut _res| {
+            _res.set(MediaType::Json);
+
             let domain = _req.param("domain").unwrap();
             let tld = _req.param("tld").unwrap();
+
             let full_domain = format!("{}.{}", domain, tld);
-            domains::whois(full_domain)
+            let status = domains::whois(full_domain.clone());
+
+            format!("{} \"{}\": \"{}\", \"{}\": \"{}\" {}",
+                "{",
+                    "domain", full_domain,
+                    "status", status,
+                "}"
+            )
+
         }
     });
 
