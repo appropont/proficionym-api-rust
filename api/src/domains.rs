@@ -2,14 +2,15 @@ use std::process::Command;
 use regex::Regex;
 
 pub fn whois(domain: String) -> String {
-    //format!("whois lookup for {}", domain)
+    
     let command_string = format!("whois {}", domain);
     let whois = Command::new("sh")
-                            .arg("-c")
-                            .arg(command_string)
-                            .output().unwrap_or_else(|e| {
-        panic!("failed to execute process: {}", e)
-    });
+        .arg("-c")
+        .arg(command_string)
+        .output().unwrap_or_else(|e| {
+            panic!("failed to execute process: {}", e)
+        });
+        
     let whois_response = String::from_utf8(whois.stdout).unwrap();
     
     let whois_available_regex = Regex::new("No match for domain").unwrap();
