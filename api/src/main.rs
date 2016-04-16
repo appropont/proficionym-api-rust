@@ -4,8 +4,13 @@
 extern crate nickel;
 extern crate config;
 extern crate regex;
+extern crate hyper;
+extern crate quick_xml;
+extern crate serde;
+extern crate serde_json;
 
 use std::path::Path;
+use std::env::set_var;
 use nickel::{Nickel, JsonBody, HttpRouter, Request, Response, MiddlewareResult, MediaType};
 use config::reader;
 
@@ -20,6 +25,8 @@ fn main() {
     let configuration = app_config.unwrap();
     let dictionary_api_key = configuration.lookup_str("application.keys.dictionary");
     assert!(dictionary_api_key.is_some());
+    set_var("dictionary_api_key", dictionary_api_key.unwrap());
+
 
     let mut server = Nickel::new();
 
@@ -30,8 +37,14 @@ fn main() {
     });
 
     server.utilize(router! {
-        get "/synonyms/:word" => |_req, _res| {
-            synonyms::lookup(_req.param("word").unwrap().to_owned())
+        get "/synonyms/:word" => |_req,mut _res| {
+            _res.set(MediaType::Json);
+            let synonyms = synonyms::lookup(_req.param("word").unwrap().to_owned());
+            format!("{} \"synonyms\": {} {}",
+                "{",
+                    serde_json::to_string(&synonyms).unwrap(),
+                "}"
+            )
         }
     });
 
