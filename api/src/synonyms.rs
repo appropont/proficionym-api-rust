@@ -8,8 +8,24 @@ use regex::Regex;
 
 use quick_xml::{XmlReader, Event, AsStr};
 
+use redis;
+use redis::Commands;
+
 pub fn lookup(word: String) -> Vec<String> {
-    //format!("looking up synonyms for {}", word)
+
+    let cached_synonyms = get_cached_synonyms(word.clone());
+
+    if cached_synonyms.is_empty() {
+        let fetched_synonyms = fetch_synonyms(word.clone());
+        set_cached_synonyms(word, join_synonyms_to_string(fetched_synonyms.to_owned()).to_owned());
+        return fetched_synonyms;
+    } else {
+        return split_synonyms_string(cached_synonyms);
+    }
+
+}
+
+fn fetch_synonyms(word: String) -> Vec<String> {
 
     let mut client = Client::new();
     let api_key = var("dictionary_api_key").unwrap();
@@ -51,25 +67,65 @@ pub fn lookup(word: String) -> Vec<String> {
         }
     }
 
-    println!("raw_words: {}", raw_words.clone());
     //regexes (several of these could be combined)
     // TODO: Convert logic to token-based streaming string analysis for performance
     let regex_removals = Regex::new(r"(\s|\[\]|-)").unwrap();
     let regex_semicolons = Regex::new(r"([;])").unwrap();
-    let regex_parens = Regex::new(r"(\(.*\)|\()").unwrap();
 
     let raw_words_after_removals = regex_removals.replace_all(&raw_words, "");
     let raw_words_after_semicolons = regex_semicolons.replace_all(&raw_words_after_removals, ",");
 
-    let mut words = Vec::new();
+    return split_synonyms_string(raw_words_after_semicolons);
 
-    for word in raw_words_after_semicolons.split(",") {
+}
+
+// TODO: Refactor this to return a proper Result or Option (unsure) instead of an empty string
+fn get_cached_synonyms(word: String) -> String {
+
+    let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+    println!("get_cached_synonyms: past Client::open");
+    let connection = client.get_connection().unwrap();
+    println!("get_cached_synonyms: past get_connection");
+
+    let cached_synonyms = connection.get(format!("synonyms:{}", word));
+
+    if cached_synonyms.is_ok() {
+        return cached_synonyms.unwrap();
+    } else {
+        return "".to_owned();
+    }
+
+}
+
+// TODO: Make this function return a Result or Option
+fn set_cached_synonyms(word: String, synonyms: String) {
+
+    let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+    println!("set_cached_synonyms: past Client::open");
+    let connection = client.get_connection().unwrap();
+    println!("set_cached_synonyms: past get_connection");
+    let key = format!("synonyms:{}", word);
+
+    // This function doesnt return anything and this let seems superfluous, but the value needed the type annotation for the compiler
+    let result: String = connection.set(key, synonyms).unwrap();
+
+}
+
+fn split_synonyms_string(synonyms: String) -> Vec<String> {
+    let mut words = Vec::new();
+    let regex_parens = Regex::new(r"(\(.*\)|\()").unwrap();
+
+    for word in synonyms.split(",") {
         if word != "" {
             // Scrub parens here since doing so at the same time as other removals was causing issues.
+            // TODO: Fine tune the parens regex so that it can be done at the pre-split string level for performance.
             words.push(regex_parens.replace_all(&word.to_string(), ""));
         }
     }
 
     return words;
+}
 
+fn join_synonyms_to_string(synonyms: Vec<String>) -> String {
+    return synonyms.join(",");
 }

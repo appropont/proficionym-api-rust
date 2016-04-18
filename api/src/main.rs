@@ -8,6 +8,7 @@ extern crate hyper;
 extern crate quick_xml;
 extern crate serde;
 extern crate serde_json;
+extern crate redis;
 
 use std::path::Path;
 use std::env::set_var;
