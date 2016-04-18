@@ -105,9 +105,10 @@ fn set_cached_synonyms(word: String, synonyms: String) {
     let connection = client.get_connection().unwrap();
     println!("set_cached_synonyms: past get_connection");
     let key = format!("synonyms:{}", word);
+    let expiration = 60 * 60 * 24 * 180; //seconds * minutes * hours * days
 
     // This function doesnt return anything and this let seems superfluous, but the value needed the type annotation for the compiler
-    let result: String = connection.set(key, synonyms).unwrap();
+    let result: String = connection.set_ex(key, synonyms, expiration).unwrap();
 
 }
 
