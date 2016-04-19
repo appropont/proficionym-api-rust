@@ -17,7 +17,8 @@ pub fn lookup(word: String) -> Vec<String> {
 
     if cached_synonyms.is_empty() {
         let fetched_synonyms = fetch_synonyms(word.clone());
-        set_cached_synonyms(word, join_synonyms_to_string(fetched_synonyms.to_owned()).to_owned());
+        set_cached_synonyms(word,
+                            join_synonyms_to_string(fetched_synonyms.to_owned()).to_owned());
         return fetched_synonyms;
     } else {
         return split_synonyms_string(cached_synonyms);
@@ -30,11 +31,14 @@ fn fetch_synonyms(word: String) -> Vec<String> {
     let mut client = Client::new();
     let api_key = var("dictionary_api_key").unwrap();
 
-    let url = format!("http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/{}?key={}",word ,api_key);
+    let url = format!("http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/{}?key={}",
+                      word,
+                      api_key);
 
     let mut response = client.get(&url)
-        .header(Connection::close())
-        .send().unwrap();
+                             .header(Connection::close())
+                             .send()
+                             .unwrap();
 
     // Read the Response.
     let mut body = String::new();
@@ -51,23 +55,23 @@ fn fetch_synonyms(word: String) -> Vec<String> {
                 match e.name() {
                     b"syn" | b"rel" => {
                         should_capture = true;
-                    },
+                    }
                     _ => (),
                 }
-            },
+            }
             Ok(Event::Text(e)) => {
                 if should_capture == true {
                     raw_words.push_str(e.into_string().unwrap().as_str());
                     raw_words.push_str(",");
                     should_capture = false;
                 }
-            },
+            }
             Err((e, pos)) => panic!("{:?} at position {}", e, pos),
             _ => (),
         }
     }
 
-    //regexes (several of these could be combined)
+    // regexes (several of these could be combined)
     // TODO: Convert logic to token-based streaming string analysis for performance
     let regex_removals = Regex::new(r"(\s|\[\]|-)").unwrap();
     let regex_semicolons = Regex::new(r"([;])").unwrap();
@@ -107,7 +111,8 @@ fn set_cached_synonyms(word: String, synonyms: String) {
     let key = format!("synonyms:{}", word);
     let expiration = 60 * 60 * 24 * 180; //seconds * minutes * hours * days
 
-    // This function doesnt return anything and this let seems superfluous, but the value needed the type annotation for the compiler
+    // This function doesnt return anything and this let seems superfluous,
+    //   but the value needed the type annotation for the compiler
     let result: String = connection.set_ex(key, synonyms, expiration).unwrap();
 
 }
@@ -118,8 +123,10 @@ fn split_synonyms_string(synonyms: String) -> Vec<String> {
 
     for word in synonyms.split(",") {
         if word != "" {
-            // Scrub parens here since doing so at the same time as other removals was causing issues.
-            // TODO: Fine tune the parens regex so that it can be done at the pre-split string level for performance.
+            // Scrub parens here since doing so at the same time as other removals
+            //   was causing issues.
+            // TODO: Fine tune the parens regex
+            //   so that it can be done at the pre-split string level for performance.
             words.push(regex_parens.replace_all(&word.to_string(), ""));
         }
     }
