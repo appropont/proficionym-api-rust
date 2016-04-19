@@ -19,7 +19,7 @@ pub fn whois(domain: String) -> String {
     if whois_available_regex.is_match(&whois_response) {
         whois_status = "available";
     } else if whois_unavailable_regex.is_match(&whois_response) {
-        whois_status = "unavailable";
+        whois_status = "registered";
     }
 
     return whois_status.to_string();
