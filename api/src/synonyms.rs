@@ -16,11 +16,13 @@ pub fn lookup(word: String) -> Vec<String> {
     let cached_synonyms = get_cached_synonyms(word.clone());
 
     if cached_synonyms.is_empty() {
+        //println!("No cached synonyms found, fetching...");
         let fetched_synonyms = fetch_synonyms(word.clone());
         set_cached_synonyms(word,
                             join_synonyms_to_string(fetched_synonyms.to_owned()).to_owned());
         return fetched_synonyms;
     } else {
+        //println!("Cached synonyms found. Bypassing fetch...");
         return split_synonyms_string(cached_synonyms);
     }
 
@@ -87,9 +89,7 @@ fn fetch_synonyms(word: String) -> Vec<String> {
 fn get_cached_synonyms(word: String) -> String {
 
     let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
-    println!("get_cached_synonyms: past Client::open");
     let connection = client.get_connection().unwrap();
-    println!("get_cached_synonyms: past get_connection");
 
     let cached_synonyms = connection.get(format!("synonyms:{}", word));
 
@@ -105,9 +105,7 @@ fn get_cached_synonyms(word: String) -> String {
 fn set_cached_synonyms(word: String, synonyms: String) {
 
     let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
-    println!("set_cached_synonyms: past Client::open");
     let connection = client.get_connection().unwrap();
-    println!("set_cached_synonyms: past get_connection");
     let key = format!("synonyms:{}", word);
     let expiration = 60 * 60 * 24 * 180; //seconds * minutes * hours * days
 
