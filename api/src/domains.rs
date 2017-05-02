@@ -2,6 +2,10 @@ use std::process::Command;
 use regex::Regex;
 
 pub fn whois(domain: String) -> String {
+    whois_cli(domain)
+}
+
+fn whois_cli(domain: String) -> String {
 
     let command_string = format!("whois {}", domain);
     let whois = Command::new("sh")
@@ -24,6 +28,10 @@ pub fn whois(domain: String) -> String {
 
     return whois_status.to_string();
 
+}
+
+fn whois_custom(domain: String) -> String {
+    domain
 }
 
 // TODO: Consider adapting https://gist.github.com/gkbrk/0c2317e9f72dbe55695b

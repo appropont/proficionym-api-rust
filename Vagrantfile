@@ -18,7 +18,7 @@ Vagrant.configure(2) do |config|
   
   config.vm.provision "shell", inline: <<-SHELL
     apt-get update
-    apt-get install -y git curl nginx
-    curl -sSf https://static.rust-lang.org/rustup.sh | sh
+    apt-get install -y git curl nginx openssl libssl-dev
+    curl -s https://static.rust-lang.org/rustup.sh | sh -s -- --channel=beta
   SHELL
 end

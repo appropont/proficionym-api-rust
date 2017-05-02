@@ -46,7 +46,7 @@ fn fetch_synonyms(word: String) -> Vec<String> {
     let mut body = String::new();
     response.read_to_string(&mut body).unwrap();
 
-    let reader = XmlReader::from_str(&body).trim_text(true);
+    let reader = XmlReader::from(body.as_ref()).trim_text(true);
     let mut raw_words = String::new();
 
     let mut should_capture = false;
