@@ -115,7 +115,7 @@ fn set_cached_synonyms(word: String, synonyms: String) {
 
     // This function doesnt return anything and this let seems superfluous,
     //   but the value needed the type annotation for the compiler
-    let result: String = connection.set_ex(key, synonyms, expiration).unwrap();
+    connection.set_ex(key, synonyms, expiration).unwrap()
 
 }
 

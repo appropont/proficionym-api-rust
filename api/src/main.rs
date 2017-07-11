@@ -69,6 +69,6 @@ fn main() {
         }
     });
 
-    server.listen("127.0.0.1:9000");
+    server.listen("127.0.0.1:9000").unwrap();
 
 }
