@@ -113,8 +113,6 @@ fn set_cached_synonyms(word: String, synonyms: String) {
     let key = format!("synonyms:{}", word);
     let expiration = 60 * 60 * 24 * 180; //seconds * minutes * hours * days
 
-    // This function doesnt return anything and this let seems superfluous,
-    //   but the value needed the type annotation for the compiler
     connection.set_ex(key, synonyms, expiration).unwrap()
 
 }
