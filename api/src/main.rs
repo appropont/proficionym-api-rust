@@ -12,7 +12,7 @@ extern crate redis;
 
 use std::path::Path;
 use std::env::set_var;
-use nickel::{Nickel, JsonBody, HttpRouter, Request, Response, MiddlewareResult, MediaType};
+use nickel::{Nickel, MediaType};
 use config::reader;
 
 mod domains;

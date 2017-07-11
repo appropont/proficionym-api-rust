@@ -6,9 +6,11 @@ use std::env::var;
 use std::vec::Vec;
 use regex::Regex;
 
-use quick_xml::{XmlReader, Event, AsStr};
+use quick_xml::reader::Reader;
+use quick_xml::events::Event;
 
 use redis;
+use redis::parse_redis_url;
 use redis::Commands;
 
 pub fn lookup(word: String) -> Vec<String> {
@@ -16,13 +18,13 @@ pub fn lookup(word: String) -> Vec<String> {
     let cached_synonyms = get_cached_synonyms(word.clone());
 
     if cached_synonyms.is_empty() {
-        //println!("No cached synonyms found, fetching...");
+        println!("No cached synonyms found, fetching...");
         let fetched_synonyms = fetch_synonyms(word.clone());
         set_cached_synonyms(word,
                             join_synonyms_to_string(fetched_synonyms.to_owned()).to_owned());
         return fetched_synonyms;
     } else {
-        //println!("Cached synonyms found. Bypassing fetch...");
+        println!("Cached synonyms found. Bypassing fetch...");
         return split_synonyms_string(cached_synonyms);
     }
 
@@ -30,7 +32,7 @@ pub fn lookup(word: String) -> Vec<String> {
 
 fn fetch_synonyms(word: String) -> Vec<String> {
 
-    let mut client = Client::new();
+    let client = Client::new();
     let api_key = var("dictionary_api_key").unwrap();
 
     let url = format!("http://www.dictionaryapi.com/api/v1/references/thesaurus/xml/{}?key={}",
@@ -38,21 +40,21 @@ fn fetch_synonyms(word: String) -> Vec<String> {
                       api_key);
 
     let mut response = client.get(&url)
-                             .header(Connection::close())
-                             .send()
-                             .unwrap();
+        .header(Connection::close())
+        .send()
+        .unwrap();
 
     // Read the Response.
     let mut body = String::new();
     response.read_to_string(&mut body).unwrap();
 
-    let reader = XmlReader::from(body.as_ref()).trim_text(true);
+    let mut reader = Reader::from_str(body.as_ref());
     let mut raw_words = String::new();
 
     let mut should_capture = false;
-
-    for r in reader {
-        match r {
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event(&mut buf) {
             Ok(Event::Start(ref e)) => {
                 match e.name() {
                     b"syn" | b"rel" => {
@@ -63,14 +65,16 @@ fn fetch_synonyms(word: String) -> Vec<String> {
             }
             Ok(Event::Text(e)) => {
                 if should_capture == true {
-                    raw_words.push_str(e.into_string().unwrap().as_str());
+                    raw_words.push_str(&e.unescape_and_decode(&reader).unwrap());
                     raw_words.push_str(",");
                     should_capture = false;
                 }
             }
-            Err((e, pos)) => panic!("{:?} at position {}", e, pos),
+            Ok(Event::Eof) => break,
+            Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
             _ => (),
         }
+        buf.clear();
     }
 
     // regexes (several of these could be combined)
@@ -81,14 +85,14 @@ fn fetch_synonyms(word: String) -> Vec<String> {
     let raw_words_after_removals = regex_removals.replace_all(&raw_words, "");
     let raw_words_after_semicolons = regex_semicolons.replace_all(&raw_words_after_removals, ",");
 
-    return split_synonyms_string(raw_words_after_semicolons);
+    return split_synonyms_string(raw_words_after_semicolons.into_owned());
 
 }
 
 // TODO: Refactor this to return a proper Result or Option (unsure) instead of an empty string
 fn get_cached_synonyms(word: String) -> String {
 
-    let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+    let client = redis::Client::open(parse_redis_url(&var("REDIS_URL").unwrap()).unwrap()).unwrap();
     let connection = client.get_connection().unwrap();
 
     let cached_synonyms = connection.get(format!("synonyms:{}", word));
@@ -104,7 +108,7 @@ fn get_cached_synonyms(word: String) -> String {
 // TODO: Make this function return a Result or Option
 fn set_cached_synonyms(word: String, synonyms: String) {
 
-    let client = redis::Client::open("redis://127.0.0.1:6379").unwrap();
+    let client = redis::Client::open(parse_redis_url(&var("REDIS_URL").unwrap()).unwrap()).unwrap();
     let connection = client.get_connection().unwrap();
     let key = format!("synonyms:{}", word);
     let expiration = 60 * 60 * 24 * 180; //seconds * minutes * hours * days
@@ -125,7 +129,7 @@ fn split_synonyms_string(synonyms: String) -> Vec<String> {
             //   was causing issues.
             // TODO: Fine tune the parens regex
             //   so that it can be done at the pre-split string level for performance.
-            words.push(regex_parens.replace_all(&word.to_string(), ""));
+            words.push(regex_parens.replace_all(&word.to_string(), "").into_owned());
         }
     }
 
