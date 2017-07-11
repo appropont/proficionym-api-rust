@@ -11,6 +11,7 @@ extern crate serde_json;
 extern crate redis;
 
 use std::path::Path;
+use std::env::var;
 use std::env::set_var;
 use nickel::{Nickel, MediaType};
 use config::reader;
@@ -27,6 +28,15 @@ fn main() {
     let dictionary_api_key = configuration.lookup_str("application.keys.dictionary");
     assert!(dictionary_api_key.is_some());
     set_var("dictionary_api_key", dictionary_api_key.unwrap());
+
+    // set dev environment redis url no url is set.
+    let redis_url = var("REDIS_URL");
+    match redis_url {
+        Ok(val) => (),
+        Err(e) => {
+            set_var("REDIS_URL", "redis://127.0.0.1:6379");
+        }
+    }
 
 
     let mut server = Nickel::new();
